@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 
 	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/h2non/filetype"
@@ -104,15 +105,16 @@ func (g GroupLinkState) FromString(input string) GroupLinkState {
 }
 
 type GroupEntry struct {
-	Name            string   `json:"name"`
-	Id              string   `json:"id"`
-	InternalId      string   `json:"internal_id"`
-	Members         []string `json:"members"`
-	Blocked         bool     `json:"blocked"`
-	PendingInvites  []string `json:"pending_invites"`
-	PendingRequests []string `json:"pending_requests"`
-	InviteLink      string   `json:"invite_link"`
-	Admins          []string `json:"admins"`
+	Name       string `json:"name"`
+	Id         string `json:"id"`
+	InternalId string `json:"internal_id"`
+	InviteLink string `json:"invite_link"`
+	Blocked    bool   `json:"blocked"`
+
+	Members         []SignalCliGroupMember `json:"members"`
+	PendingInvites  []SignalCliGroupMember `json:"pending_invites"`
+	PendingRequests []SignalCliGroupMember `json:"pending_requests"`
+	Admins          []SignalCliGroupAdmin  `json:"admins"`
 }
 
 type IdentityEntry struct {
@@ -1119,32 +1121,19 @@ func (s *SignalClient) GetGroups(number string) ([]GroupEntry, error) {
 		groupEntry.Name = signalCliGroupEntry.Name
 		groupEntry.Id = convertInternalGroupIdToGroupId(signalCliGroupEntry.Id)
 		groupEntry.Blocked = signalCliGroupEntry.IsBlocked
-
-		members := []string{}
-		for _, val := range signalCliGroupEntry.Members {
-			members = append(members, val.Number)
-		}
-		groupEntry.Members = members
-
-		pendingMembers := []string{}
-		for _, val := range signalCliGroupEntry.PendingMembers {
-			pendingMembers = append(pendingMembers, val.Number)
-		}
-		groupEntry.PendingRequests = pendingMembers
-
-		requestingMembers := []string{}
-		for _, val := range signalCliGroupEntry.RequestingMembers {
-			requestingMembers = append(requestingMembers, val.Number)
-		}
-		groupEntry.PendingInvites = requestingMembers
-
-		admins := []string{}
-		for _, val := range signalCliGroupEntry.Admins {
-			admins = append(admins, val.Number)
-		}
-		groupEntry.Admins = admins
-
 		groupEntry.InviteLink = signalCliGroupEntry.GroupInviteLink
+
+		groupEntry.Members = make([]SignalCliGroupMember, len(signalCliGroupEntry.Members))
+		copy(groupEntry.Members, signalCliGroupEntry.Members)
+
+		groupEntry.PendingRequests = make([]SignalCliGroupMember, len(signalCliGroupEntry.PendingMembers))
+		copy(groupEntry.PendingRequests, signalCliGroupEntry.PendingMembers)
+
+		groupEntry.PendingInvites = make([]SignalCliGroupMember, len(signalCliGroupEntry.RequestingMembers))
+		copy(groupEntry.PendingInvites, signalCliGroupEntry.RequestingMembers)
+
+		groupEntry.Admins = make([]SignalCliGroupAdmin, len(signalCliGroupEntry.Admins))
+		copy(groupEntry.Admins, signalCliGroupEntry.Admins)
 
 		groupEntries = append(groupEntries, groupEntry)
 	}
